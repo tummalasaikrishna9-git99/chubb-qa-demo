@@ -16,7 +16,7 @@ Results below distinguish tests actually executed from commands provided for fut
 
 ## Findings and caveats
 
-- **Git history:** This workspace was supplied without `.git` metadata, and no global Git author identity is configured. No commits were created and no earlier history is claimed. Creating a new repository now would provide history only from the current snapshot forward, not recover the assessment’s prior development process.
+- **Git history:** The workspace arrived without `.git` metadata or a configured author. With user approval, a local repository was initialized using the supplied author identity. Commit `04edaa2` is an explicitly labeled snapshot of the extracted workspace; it does not recover or represent earlier development history.
 - The one frontend failure is the deliberate BFF routing regression: with `NEXT_PUBLIC_BFF_URL` unset, the generated client sends requests to `http://localhost:8080`, while the BFF is configured on port `8090`. It was retained because it exposes a product configuration defect.
 - The Playwright suite uses intercepted BFF responses. The claim read-back is from the test’s in-memory response fixture, not a database; the 403 is returned by the stub, not a live authorization service.
 - A separate live-stack integration test has now been added. It logs in through the UI and creates/reads back a claim through the live services. It has not been run: Docker is installed but its daemon cannot be reached in this environment. It creates a unique claim and leaves it in the target database; use only a disposable stack.
