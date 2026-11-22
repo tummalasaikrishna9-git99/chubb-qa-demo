@@ -1,0 +1,55 @@
+# Test outputs
+test-results/
+**/test-results/
+test-results-live/
+**/test-results-live/
+**/.DS_Store
+**/playwright-report/
+**/playwright-live-report/
+**/coverage/
+
+# Build and dependency outputs
+**/node_modules/
+**/target/
+**/.next/
+**/build/
+**/dist/
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+
+# Analyser outputs
+outputs/
+**/outputs/
+
+# Codebase directories (cloned repos)
+codebase/
+**/codebase/
+
+# Python
+**/__pycache__/
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+.eggs/
+dist/
+build/
+.coverage
+.cache/
+venv/
+.venv/
+
+# Pytest
+.pytest_cache/
+
+# MyPy
+.mypy_cache/
