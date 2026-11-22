@@ -14,7 +14,7 @@ test('authenticates, creates a claim, and reads persisted data back', async ({
 }) => {
   await page.goto('/login');
   await page.getByLabel('Email').fill(claimantEmail);
-  await page.getByLabel('Password').fill(claimantPassword);
+  await page.locator('#password').fill(claimantPassword);
 
   await Promise.all([
     page.waitForURL('**/claims'),

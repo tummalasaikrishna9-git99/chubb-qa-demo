@@ -1,6 +1,8 @@
 # Test outputs
 test-results/
 **/test-results/
+test-results-live/
+**/test-results-live/
 **/.DS_Store
 **/playwright-report/
 **/playwright-live-report/

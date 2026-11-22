@@ -1,143 +1,118 @@
 # Test Execution Results
 
-## Summary
+## Latest execution
 
-Results below distinguish tests actually executed from commands provided for future runs. The latest Playwright E2E run executed after removing the invalid `globalSetup` reference. Maven and frontend suite counts are the recorded results from the preceding QA execution; the repository does not contain a consolidated machine-generated report for those historical runs.
+Executed on 2026-11-22. Maven default suites and Vitest were run; Playwright stubbed E2E and the live integration test were run; both tagged Maven integration suites were attempted. Docker was unavailable, so live/Testcontainers errors below are environmental and do not establish product behavior.
 
-| Test suite | Total | Passed | Failed | Skipped | Status | Priority |
+| Test suite | Total | Passed | Failed / errors | Skipped | Status | Priority |
 |---|---:|---:|---:|---:|---|---|
-| Claims service Maven suite (default excludes `integration`) | 199 | 199 | 0 | 0 | PASS | P0–P2 |
-| BFF Maven suite (default excludes `integration`) | 213 | 213 | 0 | 0 | PASS | P0–P2 |
-| Frontend Vitest suite | 270 | 269 | 1 | 0 | FAIL — retained regression evidence | P0–P2 |
-| Playwright Chromium E2E | 3 | 3 | 0 | 0 | PASS | P0–P1 |
-| Live Playwright UI-to-service integration | 1 discovered | — | — | — | NOT RUN — Docker daemon unavailable | P0 |
-| Tagged Testcontainers integration | Not run | — | — | — | BLOCKED / NOT RUN (Docker unavailable in the recorded run) | P0–P1 |
-| Pact/API contract verification | Not run | — | — | — | NOT IMPLEMENTED / NOT RUN | P0–P1 |
+| Claims service default Maven suite | 199 | 199 | 0 | 0 | PASS | P0–P2 |
+| BFF default Maven suite | 213 | 213 | 0 | 0 | PASS | P0–P2 |
+| Frontend Vitest unit/component suite | 270 | 269 | 1 | 0 | FAIL — retained routing regression | P0–P2 |
+| Stubbed Chromium Playwright E2E | 3 | 3 | 0 | 0 | PASS | P0 |
+| Live Playwright UI-to-service integration | 1 | 0 | 1 (connection refused) | 0 | BLOCKED — UI not running | P0 |
+| Claims-service tagged Testcontainers integration | 3 | 0 | 3 errors (Docker unavailable) | 0 | BLOCKED — Docker daemon unavailable | P0–P1 |
+| BFF tagged Testcontainers/Kafka integration | 4 | 0 | 4 errors (Docker unavailable) | 0 | BLOCKED — Docker daemon unavailable | P1 |
+| Pact/API contract verification | Not present | — | — | — | NOT IMPLEMENTED / NOT RUN | P1 |
 
-## Findings and caveats
+The Java default suites cover multiple priorities; individual tests are not tagged with P0/P1/P2 metadata, so trustworthy per-priority test counts cannot be extracted. The matrix below maps executed scenarios to risk priorities without inventing test counts.
 
-- **Git history:** The workspace arrived without `.git` metadata or a configured author. With user approval, a local repository was initialized using the supplied author identity. Commit `04edaa2` is an explicitly labeled snapshot of the extracted workspace; it does not recover or represent earlier development history.
-- The one frontend failure is the deliberate BFF routing regression: with `NEXT_PUBLIC_BFF_URL` unset, the generated client sends requests to `http://localhost:8080`, while the BFF is configured on port `8090`. It was retained because it exposes a product configuration defect.
-- The Playwright suite uses intercepted BFF responses. The claim read-back is from the test’s in-memory response fixture, not a database; the 403 is returned by the stub, not a live authorization service.
-- A separate live-stack integration test has now been added. It logs in through the UI and creates/reads back a claim through the live services. It has not been run: Docker is installed but its daemon cannot be reached in this environment. It creates a unique claim and leaves it in the target database; use only a disposable stack.
-- The full TypeScript check was also attempted and failed on existing errors in unrelated test/application files (missing `beforeAll`/`afterAll` globals, stale `UserResponse.id` assumptions, a toast option type mismatch, and test fixtures using string dates instead of `Date`).
-- Targeted ESLint passed for both Playwright configs and both browser test files.
-- Playwright listed the one live integration test using discovery-only placeholder environment values; that command does not log in or contact services.
-- `docker compose ... config --quiet` passed for infra, app, and CDC Compose files. The Docker daemon was unavailable, so application services and Testcontainers were not started. A Java process listened on 8080, but UI (3001), BFF (8090), and Keycloak (8180) were not listening; the process on 8080 was not treated as verified claims-service health.
-- Playwright’s Next.js server emitted a deprecation warning about the repository’s `middleware` filename convention. It did not prevent the three tests from passing.
+## Results by priority
 
-## Commands to run
+| Priority | Coverage exercised | Result and limitation |
+|---|---|---|
+| **P0 — claim integrity, access control, and submission** | Java claim validation, status/use-case, claimant ownership and BFF RBAC tests are included in the passing Java default suites. Browser E2E covered unauthenticated route redirect, a full wizard submission/list/detail flow with stubbed BFF responses, and UI handling of a stubbed 403. A separate live login/create/readback scenario was attempted. | Unit/controller coverage and stubbed E2E passed as part of their suites. The live test did not reach `/login` because `localhost:3001` refused the connection; it did not test real authentication or persistence. |
+| **P1 — service boundaries, routing, events** | The frontend BFF routing regression; Kafka event publisher/consumer unit coverage; tagged Kafka integration; OpenAPI artifacts. | The routing regression fails as expected: actual default request URL is `http://localhost:8080/api/claims/claim-id`, expected BFF URL is port 8090. The BFF and claims tagged integration runs errored before assertions because Testcontainers could not find a Docker environment. Pact verification is not implemented. |
+| **P2 — dashboard/cache and supporting behavior** | Existing dashboard/cache/controller and other Java unit tests ran inside the default Maven suites; existing frontend component/store tests ran in Vitest. | Default Maven suites passed; Vitest has one unrelated-to-P2 routing regression failure. No separate P2 execution count is available because tests are not priority-tagged. |
 
-Run commands from the indicated directory. Use a Java 21-compatible JDK, Node/npm versions supported by the project, and Maven. The checked-out Maven wrappers do not have wrapper properties; use an installed `mvn` command unless the wrapper has been repaired.
+## Failure diagnosis and environment evidence
 
-### Frontend unit/component tests
+- **Vitest:** one genuine application/configuration regression remains red. With `NEXT_PUBLIC_BFF_URL` empty, `bff-client.ts` called `localhost:8080`; BFF is configured on `8090`. Result: 269 passed, 1 failed. Vitest config was updated to exclude `tests/integration/**`, preventing the Playwright spec from being loaded as a Vitest test.
+- **Stubbed E2E:** 3 passed. Next.js emits a non-blocking warning that the `middleware` filename convention is deprecated.
+- **Live E2E:** 1 attempted, 0 passed. The isolated final run's primary error was `page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/login`. The test stopped before login, submit, or database readback. The run did not validate application behavior beyond service unavailability. A simultaneous initial run encountered the stubbed E2E server on the same port and exposed an ambiguous password locator; the locator was corrected, Playwright artifact output was separated, and the isolated rerun confirmed the stack is unavailable. Run stubbed and live Playwright configs serially because both target port 3001.
+- **Claims Testcontainers:** 3 tests errored before assertions because Testcontainers reported “Could not find a valid Docker environment.”
+- **BFF Testcontainers:** 4 tests errored for the same missing Docker environment.
+- Docker CLI was installed, but `docker info` could not connect to `npipe:////./pipe/dockerDesktopLinuxEngine`. Ports 3001, 8090, and 8180 were not listening. A Java process listened on 8080, but that alone was not treated as verified service health.
+- All three Compose files (`docker-compose.infra.yml`, `docker-compose.apps.yml`, `docker-compose.cdc.yml`) passed `docker compose ... config --quiet` syntax validation earlier; syntax validation does not start or health-check containers.
+- Targeted ESLint on both Playwright configs and both browser test files passed. Full `npx tsc --noEmit` still reports existing errors: missing `beforeAll`/`afterAll` globals, stale `UserResponse.id` test references, invalid toast option typing, and string dates where `Date` is expected.
+- Git history was initialized from the extracted workspace with user approval. Commit `04edaa2` is a snapshot, not recovered development history.
+
+## Commands executed
+
+Run from the relevant project directory. On this machine Maven was invoked from `C:\Users\tumma\AppData\Local\Temp\apache-maven-3.9.11\bin\mvn.cmd`; a globally installed `mvn` command was unavailable.
+
+```powershell
+# Claims service unit/default suite
+Set-Location .\code\claims-service
+mvn test
+
+# BFF unit/default suite
+Set-Location ..\bff-service
+mvn test
+
+# Frontend unit/component suite
+Set-Location ..\demo-app-ui
+npm test
+
+# Stubbed browser E2E
+npx playwright test --project=chromium --workers=1
+
+# Claims Testcontainers integration
+Set-Location ..\claims-service
+mvn test '-Dgroups=integration' '-Dsurefire.excludedGroups='
+
+# BFF Kafka/Testcontainers integration
+Set-Location ..\bff-service
+mvn test '-Dgroups=integration' '-Dsurefire.excludedGroups='
+
+# Live browser-to-service test (run only against a disposable local stack)
+Set-Location ..\demo-app-ui
+$env:LIVE_E2E_BASE_URL = 'http://localhost:3001'
+$env:LIVE_E2E_CLAIMANT_EMAIL = 'claimant@demo.com'
+$env:LIVE_E2E_CLAIMANT_PASSWORD = '<seeded claimant password>'
+npm run test:integration
+```
+
+The commands above are examples using a globally available `mvn`; use the Maven executable appropriate to your machine. Live integration writes a uniquely marked claim and does not delete it. Do not target production/shared data.
+
+## Reproducible commands for a configured workstation
+
+### Java default suites
+
+```powershell
+Set-Location .\code\claims-service
+mvn test
+Set-Location ..\bff-service
+mvn test
+```
+
+By default, Maven excludes the `integration` tag.
+
+### Frontend unit and stubbed E2E
 
 ```powershell
 Set-Location .\code\demo-app-ui
 npm ci
 npm run generate:api
 npm test
-```
-
-`npm test` invokes `vitest run`. For the complete suite with coverage:
-
-```powershell
-npm run test:coverage
-```
-
-### Playwright E2E
-
-```powershell
-Set-Location .\code\demo-app-ui
-npm ci
-npm run generate:api
 npx playwright install chromium
 npm run test:e2e
 ```
 
-Playwright starts Next.js on port 3001. The local suite uses Chromium and its route handlers to stub BFF traffic. In CI, the config also includes Firefox and starts a production build/server. To list discovered tests without running them:
+Stubbed Playwright starts Next.js locally and intercepts BFF responses; it does not require the Docker stack.
+
+Run the stubbed and live Playwright suites separately, not concurrently: the local stubbed E2E config starts Next.js on port 3001, which is also the default live-stack URL.
+
+### Live Playwright and Testcontainers integration
+
+Start Docker Desktop/Engine, run `./start-infra.sh` and `./start-app.sh` from the repository root, and verify UI, BFF, claims-service, Keycloak, and database health before running `npm run test:integration`. Supply claimant credentials via environment variables, not tracked files.
+
+To run tagged Testcontainers tests, run this from each Maven project:
 
 ```powershell
-npm run test:e2e -- --list
-```
-
-### Live Playwright integration
-
-Start the full stack from the repository root (`./start-infra.sh`, then `./start-app.sh`), and set credentials for the seeded claimant. The test uses real authentication and service endpoints, and writes a uniquely marked claim to the database.
-
-PowerShell:
-
-```powershell
-$env:LIVE_E2E_BASE_URL = "http://localhost:3001"
-$env:LIVE_E2E_CLAIMANT_EMAIL = "claimant@demo.com"
-$env:LIVE_E2E_CLAIMANT_PASSWORD = "<seeded claimant password>"
-Set-Location .\code\demo-app-ui
-npm run test:integration
-```
-
-The command fails at configuration load if any required variable is missing. Do not use shared or production data. The test does not delete the claim; discard the isolated test database/volume after the run. `npm run test:integration -- --list` only checks discovery; it does not prove service readiness or execute the test.
-
-### Java unit and default Maven suites
-
-The standard Maven test command excludes tests tagged `integration`; it runs the ordinary unit/controller/security suites and any test-framework contract tests that are actually present.
-
-```powershell
-Set-Location .\code\claims-service
-mvn test
-
-Set-Location ..\bff-service
-mvn test
-```
-
-To run both services’ default suites in a single PowerShell session, execute each command from its project directory as above. The default BFF suite includes MockMvc/RBAC tests; these should not be mistaken for live end-to-end authorization against Keycloak.
-
-### Tagged integration tests
-
-Integration tests use Testcontainers and require Docker Engine/Desktop to be running and accessible to the current user.
-
-Run only the tests tagged `integration`:
-
-```powershell
-Set-Location .\code\claims-service
-mvn test '-Dgroups=integration' '-Dsurefire.excludedGroups='
-
-Set-Location ..\bff-service
 mvn test '-Dgroups=integration' '-Dsurefire.excludedGroups='
 ```
-
-To run all tests, including integration tests, in either service:
-
-```powershell
-mvn test '-Dsurefire.excludedGroups='
-```
-
-Run this from each Maven project directory. This can take longer and starts Testcontainers dependencies where required. Integration tests in the claims service include PostgreSQL persistence; BFF includes the Kafka consumer integration test.
 
 ### Contract tests
 
-There is no verified Pact test command at present. The POMs declare Pact dependencies/configuration, but the inspected repository contains no Pact test classes or pact files. Do not count `mvn test`, OpenAPI generation, or generated client compilation as contract verification.
-
-After adding actual Pact provider/consumer tests and pact artifacts, run them with the relevant Maven test selection, for example:
-
-```powershell
-Set-Location .\code\bff-service
-mvn test '-Dtest=*Pact*'
-
-Set-Location ..\claims-service
-mvn test '-Dtest=*Pact*'
-```
-
-These are only candidate selectors, not currently verified executable commands: confirm test class names and provider setup when contract tests are implemented. The current OpenAPI spec files can support schema/contract work:
-
-- `code/bff-service/src/main/resources/openapi/bff-api.yml`
-- `code/claims-service/src/main/resources/openapi/claims-api.yml`
-
-### Optional static checks
-
-```powershell
-Set-Location .\code\demo-app-ui
-npm run lint
-npx tsc --noEmit
-```
-
-The recorded targeted ESLint command passed. The full `tsc --noEmit` check currently fails with unrelated existing TypeScript errors; it is not a passing quality gate.
+No executable Pact test suite or pact files were identified. Pact dependencies, OpenAPI specifications, and generated clients do not constitute contract test execution. Contract results are therefore **not implemented/not run**.

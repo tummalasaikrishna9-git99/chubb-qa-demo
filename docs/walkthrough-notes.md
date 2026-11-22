@@ -18,21 +18,52 @@ Open [test-strategy.md](./test-strategy.md). Explain:
 - P3–P5 are lower-risk combinations, compatibility/accessibility breadth, and performance/resilience; they were not completed.
 - The browser tests use BFF stubs, so their scope is UI workflow confidence, not proof of persistence or live service integration.
 
-### 3. E2E test walkthrough (5–7 minutes)
+### 3. Test cases and execution steps (7–9 minutes)
 
-Open `code/demo-app-ui/tests/e2e/claims-flow.spec.ts` and walk through:
+#### Unit and component tests
 
-1. **Protected route:** visit `/claims` without an access cookie; assert redirect to `/login`.
-2. **Submission and read-back:** set the middleware cookie, stub the claims API, start from the empty state, fill the date/location/amount and description steps, review the claim, submit it, verify the POST body, then verify the generated record in the claims table and detail modal.
-3. **Access denied:** return a 403 for detail retrieval and assert the authorization message appears without private claim fields.
+- `ClaimValidationBoundaryTest.java` verifies accepted minimum amount/text lengths and maximum amount/text lengths in the Java domain.
+- `claim-schema-boundaries.test.ts` checks the same lower/upper boundaries in the frontend schema and rejects out-of-range values.
+- Existing claim domain/status/use-case suites cover state transitions, user existence, claim creation, ownership, and event publishing. `CreateClaimUseCaseTest` asserts a `ClaimSubmitted` event is published and domain events are cleared after publication.
+- The BFF `RbacIntegrationTest` exercises unauthenticated 401, claimant 403 for admin actions, and admin access using Spring MockMvc security support.
+- Existing component/store tests exercise visible React behavior and persistence. The theme-store test was aligned with the actual `sessionStorage` persistence behavior.
+- `bff-routing-regression.test.ts` asserts local requests use port 8090. It is intentionally failing because the client currently sends the request to port 8080.
 
-Emphasize that the stub preserves submitted data for deterministic list/detail reads. This validates the UI behavior and request shape; it does not claim that a real database persisted the record. A separate live test is implemented in `tests/integration/live-claims.spec.ts`; it requires the Docker stack and seeded claimant credentials, writes a persistent uniquely marked claim, and has not been run in this environment.
+Run frontend unit/component tests with `npm test` from `code/demo-app-ui`; run Java unit/controller suites with `mvn test` from each Java service directory. On this run, Vitest reported 269 passed and the routing regression failed; claims-service reported 199 passed and BFF reported 213 passed.
+
+#### Stubbed Playwright E2E cases
+
+Open `code/demo-app-ui/tests/e2e/claims-flow.spec.ts`:
+
+1. **Unauthenticated redirect (P0):** start with no auth cookie; visit `/claims`; assert the browser redirects to login and displays the login heading.
+2. **Claim wizard and UI readback (P0):** set a cookie only to pass the UI middleware check; stub `GET /api/claims` as empty; enter incident date, location, and amount; go to supporting details and enter a description; review and submit; assert the POST body; have the stub return the created claim on subsequent list/detail requests; verify the claim appears in the list and details modal.
+3. **Denied detail response (P0):** return a claim summary from the list request and 403 from the details request; assert the modal shows the authorization error and does not show protected detail fields.
+
+Run with `npx playwright test --project=chromium --workers=1`. All three passed. Clarify that the cookie is not a real JWT and readback comes from the test’s in-memory API stub.
+
+#### Live browser-to-service integration case
+
+Open `code/demo-app-ui/tests/integration/live-claims.spec.ts`:
+
+1. Navigate to the live login page and log in with the seeded claimant account.
+2. Fill the claim wizard and submit a uniquely marked claim.
+3. Assert the live API responds 201 and returns a claim ID.
+4. Verify the claim appears in the live claims list and details.
+
+Run with environment variables and `npm run test:integration`; the exact safe local command is in [execution-results.md](./execution-results.md). Run this separately from stubbed E2E because both target port 3001. This run attempted the test but got `ERR_CONNECTION_REFUSED` at `http://localhost:3001/login`; no login, write, or database readback occurred. It is therefore **blocked, not passed**. It leaves data in the target database when it does run; use a disposable stack.
+
+#### Testcontainers integration cases
+
+- `ClaimRepositoryIntegrationTest` starts PostgreSQL through Testcontainers and verifies save/readback, ordering, status timestamp updates, and constraints.
+- `ClaimEventKafkaConsumerIntegrationTest` publishes claim-submitted, status-changed, and CDC messages and waits for expected WebSocket handler broadcasts.
+
+Run the `integration` tag in each Java service using the command in [execution-results.md](./execution-results.md). The latest attempts errored before assertions because Docker could not be reached: 3 claims-service test errors and 4 BFF test errors. Do not present these as product-test failures or passes.
 
 ### 4. Execution outcome and defects (3–4 minutes)
 
-Open [execution-results.md](./execution-results.md). Report the three stubbed Chromium E2E tests passing and the recorded Maven suite results. Be transparent that one Vitest test intentionally fails on the default frontend BFF URL (`8080` vs BFF `8090`), that the new live test and Docker/Testcontainers integration tests could not run because Docker was unavailable, and that no Pact contract suite was found. The full TypeScript check also reports unrelated existing errors.
+Open [execution-results.md](./execution-results.md). Report the fresh suite totals, not only the earlier run: 199 claims unit tests pass; 213 BFF default tests pass; Vitest has 269 passes and the known routing regression failure; stubbed Chromium E2E has 3 passes; live UI integration and Testcontainers suites are blocked by unavailable services/Docker. Pact tests are not implemented. Full TypeScript checking has unrelated existing errors.
 
-The supplied directory has no Git metadata, so its earlier development history cannot be presented. If a new local repository is initialized, disclose that it starts from the current snapshot and is not the original commit history.
+Git history begins with a newly initialized snapshot commit because the supplied folder had no Git metadata; it is not the original assessment work history.
 
 Do not describe the 403 stub as a live authorization test or the stubbed read-back as persistence coverage.
 
@@ -49,7 +80,7 @@ Do not describe the 403 stub as a live authorization test or the stubbed read-ba
 
 1. Fix or deliberately configure the frontend BFF default and rerun the routing regression.
 2. Start Docker and run the tagged PostgreSQL/Kafka Testcontainers suites.
-3. Add a live API integration flow that creates a claim, reads it back from persistence, and validates ownership using real test authentication.
+3. Execute and harden the implemented live UI integration flow, then add a second-user ownership check using real test authentication.
 4. Implement executable provider/consumer contract verification from the OpenAPI contracts or Pact interactions.
 5. Add dispute/false-positive cases only after confirming the product requirements and API behavior.
 6. Resolve the pre-existing TypeScript errors and run the full static/type checks.

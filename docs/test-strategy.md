@@ -31,7 +31,7 @@ The official assessment material describes a different Angular implementation. T
 ### API/MVC and integration
 
 - BFF MockMvc tests, including RBAC scenarios, exercise request/controller/security behavior inside Spring test contexts.
-- Testcontainers tests are tagged `integration`; they exercise PostgreSQL persistence and Kafka event consumption.
+- Testcontainers tests are tagged `integration`; they exercise PostgreSQL persistence and Kafka event consumption. They were attempted, but Docker was unavailable and the container-backed tests errored before assertions.
 - Run tagged tests separately as documented in [execution-results.md](./execution-results.md). Docker must be available.
 
 ### Browser E2E

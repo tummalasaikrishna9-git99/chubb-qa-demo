@@ -23,6 +23,7 @@ export default defineConfig({
   retries: 0,
   workers: 1,
   timeout: 60_000,
+  outputDir: 'test-results-live',
   reporter: [
     ['list'],
     ['html', { outputFolder: 'playwright-live-report' }],

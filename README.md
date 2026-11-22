@@ -169,6 +169,7 @@ npm run test:e2e
 ```
 
 This suite launches Next.js on port 3001 and stubs BFF traffic. It verifies browser/UI behavior, not backend persistence or live authorization.
+Run it separately from the live integration suite; both default to port 3001.
 
 ### Run live UI-to-service integration
 
