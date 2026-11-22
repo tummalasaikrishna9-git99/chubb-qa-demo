@@ -1,0 +1,22 @@
+# AI Working Journal
+
+This is a concise reconstruction from the work and validation recorded in this assessment session, not a verbatim prompt transcript. It records actual decisions and does not infer unobserved timing or claim tests that were not run.
+
+| Decision / proposal | Disposition | Rationale and evidence | Validation / outcome |
+|---|---|---|---|
+| Assume the assessment’s Angular/no-tests description applies to this checkout. | Challenged and rejected. | Repository source and package manifests show a Next.js/React UI with Vitest/Testing Library, alongside Spring services and existing tests. The repository code was treated as the source of truth. | Existing frontend and Maven test suites were run and their outcomes recorded. |
+| Treat a generated OpenAPI client, dependencies, or config as proof of contract test coverage. | Rejected. | Pact dependencies and OpenAPI documents exist, but inspection found no executable Pact tests or pact files. | Contract status is documented as not implemented/not run; no contract pass is claimed. |
+| Remove the Playwright `globalSetup` setting or create a synthetic setup file. | Removed the stale setting. | The configured setup file did not exist and there was no shared E2E bootstrap state needed by current browser tests. | `playwright test --list` discovered the tests; Chromium run later passed all three stubbed E2E cases. |
+| Make the E2E submission scenario green by mocking every API response. | Accepted only for UI-level E2E, with scope stated. | BFF interception supports deterministic UI workflow verification without a running stack. It cannot establish persistence, real JWT authorization, or service integration. | Three Chromium tests passed against actual Next.js routes; the strategy and reports explicitly describe the stub boundary. |
+| Treat a failed frontend routing regression as a test bug and remove or weaken it. | Challenged and rejected. | The generated client actually targeted port 8080 when the BFF is configured on 8090. The failure is product evidence, not an assertion mismatch. | The failing regression was retained and documented; the Vitest suite remains 269 passed, 1 failed. |
+| Make a live integration test executable despite Docker being unavailable. | Implemented with an explicit run prerequisite; execution remains blocked. | A separate Playwright config requires a live URL and claimant credentials; the test uses real login, submits through the app, and reads the created claim through the UI. | Discovery found one test and targeted lint passed. Live execution was not performed because Docker API connection failed (`dockerDesktopLinuxEngine` pipe unavailable); ports 3001, 8090, and 8180 were not listening. |
+| Claim the prior checkout already had meaningful Git history. | Rejected. | `git rev-parse --show-toplevel` returned “not a git repository”; the supplied directory is an extracted source checkout. No global Git author identity is configured. | No earlier commits/authors will be fabricated. Any new history must be labeled as beginning at a snapshot and use an explicitly chosen author identity. |
+| Align README event-mode instructions by changing application defaults without runtime confirmation. | Deferred. | The README says direct Kafka is the default, while Compose and claims-service configuration set CDC enabled. Changing production defaults was not required for this documentation gap and live behavior could not be verified. | README and defect report now state the checked-in configuration and discrepancy instead of silently asserting direct Kafka default behavior. |
+| Report full TypeScript check as passing because targeted lint passed. | Rejected. | `tsc --noEmit` returned errors in existing test fixtures/types and a toast option, while targeted ESLint on Playwright files passed. These are separate quality checks. | Both outcomes are reported distinctly in execution results. |
+
+## Current unresolved follow-up
+
+- Run the live browser integration and tagged Testcontainers tests when Docker is available.
+- Decide and verify the intended CDC/direct-Kafka default; update configuration and documentation together after an executable event-flow check.
+- Implement actual Pact consumer/provider verification if contract testing is in scope.
+- Establish Git history only from the available snapshot onward; commit identity must reflect the actual contributor rather than invented historical authors.
